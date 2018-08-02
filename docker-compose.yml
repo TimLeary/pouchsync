@@ -1,0 +1,55 @@
+version: "3"
+services:
+  couchdb:
+    build:
+      context: .
+      dockerfile: ./images/couchdb/Dockerfile
+    volumes:
+      - ./data/couchdb:/opt/couchdb/data
+      - ./configs/couchdb:/opt/couchdb/etc/local.d
+    ports:
+     - "5984:5984"
+    networks:
+      - couch
+
+  creator:
+    build:
+      context: .
+      dockerfile: ./images/python/Dockerfile
+    volumes: 
+      - ./src/commands:/commands
+    command: python /commands/create_db.py
+    depends_on:
+      - couchdb
+    networks: 
+      - couch
+    environment: 
+      - COUCH_DB_URL=http://127.0.0.1:5984
+      - DB_NAME=com
+  
+  yarn:
+    build:
+      context: .
+      dockerfile: ./images/node/Dockerfile
+    volumes: 
+      - ./src/client:/client
+    command: yarn --cwd /client upgrade
+    networks: 
+      - couch
+
+  server:
+    build:
+      context: .
+      dockerfile: ./images/node/Dockerfile
+    volumes: 
+      - ./src/client:/client
+    command: node /client/server.js
+    ports:
+     - "8080:8080"
+    networks: 
+      - couch
+    depends_on:
+      - yarn
+
+networks:
+  couch:
